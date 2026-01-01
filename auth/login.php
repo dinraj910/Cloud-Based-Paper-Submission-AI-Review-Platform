@@ -33,27 +33,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		}
 }
 ?>
-<div class="flex items-center justify-center min-h-[60vh]">
-	<div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
-		<h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Sign In</h2>
+<div class="flex items-center justify-center min-h-[70vh] py-12">
+	<div class="glass border border-white/20 rounded-2xl shadow-2xl p-8 w-full max-w-md">
+		<div class="text-center mb-8">
+			<div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+				<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+				</svg>
+			</div>
+			<h2 class="text-3xl font-bold gradient-text mb-2">Welcome Back</h2>
+			<p class="text-gray-600">Sign in to continue to Research Portal</p>
+		</div>
 		<?php if ($error): ?>
-			<div class="bg-red-100 text-red-700 p-3 rounded mb-4 text-center"><?php echo htmlspecialchars($error); ?></div>
+			<div class="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6 text-center text-sm">
+				<svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+				</svg>
+				<?php echo htmlspecialchars($error); ?>
+			</div>
 		<?php endif; ?>
 		<form method="post" class="space-y-5">
 			<div>
-				<label class="block mb-1 font-medium text-gray-700">Email</label>
-				<input type="email" name="email" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required value="<?php echo htmlspecialchars($email); ?>">
+				<label class="block mb-2 font-semibold text-gray-700 text-sm">Email Address</label>
+				<input type="email" name="email" class="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white/50" placeholder="you@example.com" required value="<?php echo htmlspecialchars($email); ?>">
 			</div>
 			<div>
-				<label class="block mb-1 font-medium text-gray-700">Password</label>
-				<input type="password" name="password" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+				<label class="block mb-2 font-semibold text-gray-700 text-sm">Password</label>
+				<input type="password" name="password" class="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white/50" placeholder="••••••••" required>
 			</div>
-			<div class="text-center">
-				<button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold shadow transition">Login</button>
-			</div>
+			<button type="submit" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-3.5 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all mt-6">
+				Sign In
+			</button>
 		</form>
-		<div class="mt-4 text-center text-sm text-gray-600">
-			Don't have an account? <a href="register.php" class="text-blue-600 underline">Register</a>
+		<div class="mt-6 text-center text-sm text-gray-600">
+			Don't have an account? <a href="register.php" class="text-indigo-600 hover:text-indigo-700 font-semibold">Create one</a>
 		</div>
 	</div>
 </div>
