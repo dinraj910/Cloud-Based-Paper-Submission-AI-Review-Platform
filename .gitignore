@@ -1,0 +1,33 @@
+# Ignore vendor directory (install with composer)
+/vendor/
+composer.phar
+
+# Ignore environment configuration
+.env
+config/aws.php
+
+# Ignore local uploads (since we're using S3)
+submissions/uploads/*
+!submissions/uploads/.gitkeep
+
+# Ignore logs
+*.log
+error.log
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Ignore temporary files
+*.tmp
+*.swp
+*~
+
+# Ignore backup files
+*.backup
+*.bak
+
+# Keep important config templates
+!config/aws.php.example

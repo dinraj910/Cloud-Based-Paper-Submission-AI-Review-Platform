@@ -3,6 +3,8 @@
 <?php
 session_start();
 include '../config/header.php';
+include '../config/aws.php';
+
 if (empty($_SESSION['user_id'])) {
     header('Location: /research-portal/auth/login.php');
     exit;
@@ -21,26 +23,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($fileType, $allowed)) {
             $error = 'Only PDF, DOC, DOCX, and TXT files are allowed.';
         } else {
-            // Store uploaded file
-            $uploadDir = __DIR__ . '/uploads/';
-            if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+            // Generate unique filename
             $fileName = uniqid('paper_', true) . '.' . $fileType;
-            $filePath = $uploadDir . $fileName;
-            if (move_uploaded_file($file['tmp_name'], $filePath)) {
-                $fileUrl = '/research-portal/submissions/uploads/' . $fileName;
-                include '../config/db.php';
-                $stmt = mysqli_prepare($conn, "INSERT INTO submissions (user_id, title, description, s3_file_url, file_type, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-                mysqli_stmt_bind_param($stmt, 'issss', $_SESSION['user_id'], $title, $description, $fileUrl, $fileType);
-                if (mysqli_stmt_execute($stmt)) {
-                    $success = 'Paper uploaded successfully!';
-                    $title = $description = '';
+            $s3Key = 'papers/' . date('Y/m/') . $fileName;
+            
+            // Check if AWS is configured
+            if (isAwsConfigured()) {
+                // Upload to S3
+                $contentType = getContentType($fileType);
+                $fileUrl = uploadToS3($file['tmp_name'], $s3Key, $contentType);
+                
+                if ($fileUrl) {
+                    // Save to database
+                    include '../config/db.php';
+                    $stmt = mysqli_prepare($conn, "INSERT INTO submissions (user_id, title, description, s3_file_url, file_type, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
+                    mysqli_stmt_bind_param($stmt, 'issss', $_SESSION['user_id'], $title, $description, $fileUrl, $fileType);
+                    if (mysqli_stmt_execute($stmt)) {
+                        $success = 'Paper uploaded successfully to S3!';
+                        $title = $description = '';
+                    } else {
+                        $error = 'Database error. Please try again.';
+                        // Delete from S3 if database insert failed
+                        deleteFromS3($s3Key);
+                    }
+                    mysqli_stmt_close($stmt);
+                    mysqli_close($conn);
                 } else {
-                    $error = 'Database error. Please try again.';
+                    $error = 'Failed to upload file to S3. Please check your AWS configuration.';
                 }
-                mysqli_stmt_close($stmt);
-                mysqli_close($conn);
             } else {
-                $error = 'File upload failed.';
+                // Fallback to local storage if AWS not configured
+                $uploadDir = __DIR__ . '/uploads/';
+                if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+                $filePath = $uploadDir . $fileName;
+                
+                if (move_uploaded_file($file['tmp_name'], $filePath)) {
+                    $fileUrl = '/research-portal/submissions/uploads/' . $fileName;
+                    include '../config/db.php';
+                    $stmt = mysqli_prepare($conn, "INSERT INTO submissions (user_id, title, description, s3_file_url, file_type, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
+                    mysqli_stmt_bind_param($stmt, 'issss', $_SESSION['user_id'], $title, $description, $fileUrl, $fileType);
+                    if (mysqli_stmt_execute($stmt)) {
+                        $success = 'Paper uploaded successfully (stored locally - AWS not configured)!';
+                        $title = $description = '';
+                    } else {
+                        $error = 'Database error. Please try again.';
+                        unlink($filePath);
+                    }
+                    mysqli_stmt_close($stmt);
+                    mysqli_close($conn);
+                } else {
+                    $error = 'File upload failed.';
+                }
             }
         }
     }

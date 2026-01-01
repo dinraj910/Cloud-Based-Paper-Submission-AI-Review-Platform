@@ -1,0 +1,117 @@
+<?php
+/**
+ * AWS Configuration
+ * 
+ * SETUP INSTRUCTIONS:
+ * 1. Create an S3 bucket in AWS Console (e.g., 'research-portal-papers')
+ * 2. Create an IAM user with S3 access
+ * 3. Generate Access Key and Secret Key
+ * 4. Update the values below
+ * 5. Make bucket public or configure CORS properly
+ */
+
+// AWS Credentials - REPLACE WITH YOUR ACTUAL VALUES
+define('AWS_ACCESS_KEY_ID', 'YOUR_AWS_ACCESS_KEY_ID');
+define('AWS_SECRET_ACCESS_KEY', 'YOUR_AWS_SECRET_ACCESS_KEY');
+define('AWS_REGION', 'us-east-1'); // Change to your preferred region (e.g., 'ap-south-1' for Mumbai)
+define('AWS_S3_BUCKET', 'research-portal-papers'); // Your S3 bucket name
+define('AWS_S3_VERSION', 'latest');
+
+// S3 Configuration
+define('S3_USE_PATH_STYLE', false); // Set to true if using MinIO or local S3
+define('S3_ACL', 'public-read'); // File access level: 'public-read', 'private', 'authenticated-read'
+
+/**
+ * Check if AWS is configured
+ */
+function isAwsConfigured() {
+    return AWS_ACCESS_KEY_ID !== 'YOUR_AWS_ACCESS_KEY_ID' 
+        && !empty(AWS_ACCESS_KEY_ID) 
+        && !empty(AWS_SECRET_ACCESS_KEY);
+}
+
+/**
+ * Get S3 Client
+ */
+function getS3Client() {
+    require_once __DIR__ . '/../vendor/autoload.php';
+    
+    if (!isAwsConfigured()) {
+        throw new Exception('AWS is not configured. Please update config/aws.php with your credentials.');
+    }
+    
+    return new Aws\S3\S3Client([
+        'version' => AWS_S3_VERSION,
+        'region'  => AWS_REGION,
+        'credentials' => [
+            'key'    => AWS_ACCESS_KEY_ID,
+            'secret' => AWS_SECRET_ACCESS_KEY,
+        ],
+        'use_path_style_endpoint' => S3_USE_PATH_STYLE,
+    ]);
+}
+
+/**
+ * Upload file to S3
+ * 
+ * @param string $localFilePath Path to local file
+ * @param string $s3Key S3 object key (file path in bucket)
+ * @param string $contentType MIME type of the file
+ * @return string|false S3 URL on success, false on failure
+ */
+function uploadToS3($localFilePath, $s3Key, $contentType = 'application/pdf') {
+    try {
+        $s3Client = getS3Client();
+        
+        $result = $s3Client->putObject([
+            'Bucket'      => AWS_S3_BUCKET,
+            'Key'         => $s3Key,
+            'SourceFile'  => $localFilePath,
+            'ContentType' => $contentType,
+            'ACL'         => S3_ACL,
+        ]);
+        
+        // Return the S3 URL
+        return $result['ObjectURL'];
+    } catch (Exception $e) {
+        error_log('S3 Upload Error: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Delete file from S3
+ * 
+ * @param string $s3Key S3 object key
+ * @return bool
+ */
+function deleteFromS3($s3Key) {
+    try {
+        $s3Client = getS3Client();
+        
+        $s3Client->deleteObject([
+            'Bucket' => AWS_S3_BUCKET,
+            'Key'    => $s3Key,
+        ]);
+        
+        return true;
+    } catch (Exception $e) {
+        error_log('S3 Delete Error: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Get content type from file extension
+ */
+function getContentType($extension) {
+    $types = [
+        'pdf'  => 'application/pdf',
+        'doc'  => 'application/msword',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'txt'  => 'text/plain',
+    ];
+    
+    return isset($types[$extension]) ? $types[$extension] : 'application/octet-stream';
+}
+?>
