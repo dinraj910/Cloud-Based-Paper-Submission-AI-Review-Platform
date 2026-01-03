@@ -62,7 +62,7 @@ try {
         'Key'         => $testKey,
         'SourceFile'  => $testFile,
         'ContentType' => 'text/plain',
-        'ACL'         => S3_ACL,
+        // ACL removed - using bucket policy for public access
     ]);
     
     echo "   ✓ Test file uploaded successfully\n";
