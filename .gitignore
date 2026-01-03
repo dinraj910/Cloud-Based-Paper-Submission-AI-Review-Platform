@@ -6,6 +6,7 @@ composer.phar
 .env
 config/aws.php
 config/ai.php
+set_api_key.sh
 
 # Ignore local uploads (since we're using S3)
 submissions/uploads/*
