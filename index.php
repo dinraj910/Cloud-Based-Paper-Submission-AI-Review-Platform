@@ -91,6 +91,14 @@ $stats = mysqli_fetch_assoc($statsQuery);
                             </svg>
                             Download
                         </a>
+                        <?php if ($row['file_type'] === 'pdf'): ?>
+                        <button onclick="openAIChat('<?php echo htmlspecialchars($row['s3_file_url']); ?>', '<?php echo htmlspecialchars(addslashes($row['title'])); ?>')" class="inline-flex items-center px-4 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-sm font-semibold hover:from-purple-600 hover:to-pink-600 transition-all shadow-sm hover:shadow-md">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                            </svg>
+                            AI Chat
+                        </button>
+                        <?php endif; ?>
                     </div>
                     <!-- Comments Section -->
                     <div class="mt-4 pt-4 border-t border-gray-100">
@@ -228,7 +236,276 @@ $stats = mysqli_fetch_assoc($statsQuery);
     </div>
 </section>
 
+<!-- AI Chat Modal -->
+<div id="ai-chat-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-6 text-white">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold">AI Research Assistant</h3>
+                        <p class="text-sm text-white/80" id="chat-paper-title">Loading...</p>
+                    </div>
+                </div>
+                <button onclick="closeAIChat()" class="text-white/80 hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Chat Messages -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+            <div class="flex items-start gap-3">
+                <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                </div>
+                <div class="flex-1 bg-white rounded-lg p-4 shadow-sm">
+                    <p class="text-sm text-gray-700">👋 Hi! I'm your AI research assistant. I've analyzed this paper and I'm ready to answer your questions about it. What would you like to know?</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chat Input -->
+        <div class="border-t border-gray-200 p-4 bg-white">
+            <div id="chat-status" class="text-xs text-gray-500 mb-2 hidden"></div>
+            <form id="chat-form" class="flex gap-2">
+                <input type="text" 
+                       id="chat-input" 
+                       placeholder="Ask a question about this paper..." 
+                       class="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                       required>
+                <button type="submit" 
+                        id="chat-submit"
+                        class="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
+let currentPdfText = '';
+let currentPdfUrl = '';
+let conversationHistory = [];
+
+async function openAIChat(pdfUrl, paperTitle) {
+    const modal = document.getElementById('ai-chat-modal');
+    const titleElement = document.getElementById('chat-paper-title');
+    const messagesContainer = document.getElementById('chat-messages');
+    const statusElement = document.getElementById('chat-status');
+    
+    // Reset state
+    conversationHistory = [];
+    currentPdfUrl = pdfUrl;
+    titleElement.textContent = paperTitle;
+    modal.classList.remove('hidden');
+    
+    // Reset messages to welcome message only
+    messagesContainer.innerHTML = `
+        <div class="flex items-start gap-3">
+            <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                </svg>
+            </div>
+            <div class="flex-1 bg-white rounded-lg p-4 shadow-sm">
+                <p class="text-sm text-gray-700">👋 Hi! I'm your AI research assistant. I'm analyzing this paper now. Please wait...</p>
+            </div>
+        </div>
+    `;
+    
+    // Extract PDF text
+    try {
+        statusElement.textContent = '📄 Extracting text from PDF...';
+        statusElement.classList.remove('hidden');
+        
+        const response = await fetch(`/research-portal/api/extract_pdf_text.php?url=${encodeURIComponent(pdfUrl)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            currentPdfText = data.text;
+            statusElement.textContent = `✓ PDF analyzed (${data.length} characters). Ready to answer questions!`;
+            
+            // Update welcome message
+            messagesContainer.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                    </div>
+                    <div class="flex-1 bg-white rounded-lg p-4 shadow-sm">
+                        <p class="text-sm text-gray-700">👋 Hi! I've analyzed this paper and I'm ready to answer your questions. What would you like to know?</p>
+                    </div>
+                </div>
+            `;
+            
+            setTimeout(() => {
+                statusElement.classList.add('hidden');
+            }, 3000);
+        } else {
+            statusElement.textContent = '❌ ' + data.error;
+            statusElement.classList.add('text-red-600');
+        }
+    } catch (error) {
+        console.error('Error extracting PDF:', error);
+        statusElement.textContent = '❌ Failed to analyze PDF. Please try again.';
+        statusElement.classList.add('text-red-600');
+    }
+}
+
+function closeAIChat() {
+    document.getElementById('ai-chat-modal').classList.add('hidden');
+}
+
+document.getElementById('chat-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const input = document.getElementById('chat-input');
+    const submitBtn = document.getElementById('chat-submit');
+    const messagesContainer = document.getElementById('chat-messages');
+    const question = input.value.trim();
+    
+    if (!question || !currentPdfText) return;
+    
+    // Add user message to chat
+    const userMessageDiv = document.createElement('div');
+    userMessageDiv.className = 'flex items-start gap-3 justify-end';
+    userMessageDiv.innerHTML = `
+        <div class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg p-4 shadow-sm max-w-[80%]">
+            <p class="text-sm">${escapeHtml(question)}</p>
+        </div>
+        <div class="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+            </svg>
+        </div>
+    `;
+    messagesContainer.appendChild(userMessageDiv);
+    
+    // Add loading message
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'flex items-start gap-3';
+    loadingDiv.id = 'loading-message';
+    loadingDiv.innerHTML = `
+        <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+        </div>
+        <div class="flex-1 bg-white rounded-lg p-4 shadow-sm">
+            <p class="text-sm text-gray-500">Thinking...</p>
+        </div>
+    `;
+    messagesContainer.appendChild(loadingDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    // Disable input
+    input.value = '';
+    input.disabled = true;
+    submitBtn.disabled = true;
+    
+    try {
+        // Send to AI
+        const response = await fetch('/research-portal/api/chat_pdf.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                question: question,
+                pdfText: currentPdfText,
+                history: conversationHistory
+            })
+        });
+        
+        const data = await response.json();
+        
+        // Remove loading message
+        loadingDiv.remove();
+        
+        if (data.success) {
+            // Add conversation to history
+            conversationHistory.push({role: 'user', content: question});
+            conversationHistory.push({role: 'assistant', content: data.answer});
+            
+            // Add AI response
+            const aiMessageDiv = document.createElement('div');
+            aiMessageDiv.className = 'flex items-start gap-3';
+            aiMessageDiv.innerHTML = `
+                <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                </div>
+                <div class="flex-1 bg-white rounded-lg p-4 shadow-sm">
+                    <p class="text-sm text-gray-700 whitespace-pre-wrap">${escapeHtml(data.answer)}</p>
+                    <p class="text-xs text-gray-400 mt-2">Powered by ${data.model || 'AI'}</p>
+                </div>
+            `;
+            messagesContainer.appendChild(aiMessageDiv);
+        } else {
+            // Show error
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'flex items-start gap-3';
+            errorDiv.innerHTML = `
+                <div class="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="flex-1 bg-red-50 rounded-lg p-4 shadow-sm border border-red-200">
+                    <p class="text-sm text-red-700">${escapeHtml(data.error)}</p>
+                </div>
+            `;
+            messagesContainer.appendChild(errorDiv);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        loadingDiv.remove();
+        
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'flex items-start gap-3';
+        errorDiv.innerHTML = `
+            <div class="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="flex-1 bg-red-50 rounded-lg p-4 shadow-sm border border-red-200">
+                <p class="text-sm text-red-700">Failed to get response. Please try again.</p>
+            </div>
+        `;
+        messagesContainer.appendChild(errorDiv);
+    } finally {
+        // Re-enable input
+        input.disabled = false;
+        submitBtn.disabled = false;
+        input.focus();
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+});
+
+// Close modal on background click
+document.getElementById('ai-chat-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeAIChat();
+    }
+});
+
 function toggleComments(submissionId) {
     const section = document.getElementById('comments-section-' + submissionId);
     section.classList.toggle('hidden');

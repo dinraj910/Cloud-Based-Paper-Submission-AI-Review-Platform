@@ -5,6 +5,7 @@ composer.phar
 # Ignore environment configuration
 .env
 config/aws.php
+config/ai.php
 
 # Ignore local uploads (since we're using S3)
 submissions/uploads/*
