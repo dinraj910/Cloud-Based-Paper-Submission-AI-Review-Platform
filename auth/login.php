@@ -1,6 +1,5 @@
 <?php
 session_start();
-include '../config/header.php';
 
 $email = $password = $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -20,6 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 						if (password_verify($password, $hash)) {
 								$_SESSION['user_id'] = $id;
 								$_SESSION['user_name'] = $name;
+								mysqli_stmt_close($stmt);
+								mysqli_close($conn);
 								header('Location: /research-portal/index.php');
 								exit;
 						} else {
@@ -32,6 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				mysqli_close($conn);
 		}
 }
+
+include '../config/header.php';
 ?>
 <div class="flex items-center justify-center min-h-[70vh] py-12">
 	<div class="glass border border-white/20 rounded-2xl shadow-2xl p-8 w-full max-w-md">
