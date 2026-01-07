@@ -2,13 +2,15 @@
 
 <?php
 session_start();
-include '../config/header.php';
-include '../config/aws.php';
 
+// Check authentication before including header
 if (empty($_SESSION['user_id'])) {
-    header('Location: /research-portal/auth/login.php');
+    header('Location: /auth/login.php');
     exit;
 }
+
+include '../config/header.php';
+include '../config/aws.php';
 
 $title = $description = $error = $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

@@ -21,10 +21,10 @@ $conversationHistory = $input['history'] ?? [];
 // Load API key
 include __DIR__ . '/../config/ai.php';
 
-if (empty($GROQ_API_KEY)) {
+if (empty($GROQ_API_KEY) || $GROQ_API_KEY === 'YOUR_GROQ_API_KEY_HERE') {
     echo json_encode([
         'success' => false, 
-        'error' => 'AI API key not configured. Please set GROQ_API_KEY in config/ai.php'
+        'error' => 'AI API key not configured. Please set GROQ_API_KEY in config/ai.php. Get a free key at https://console.groq.com/keys'
     ]);
     exit;
 }
@@ -64,11 +64,14 @@ if ($response['success']) {
     ]);
 }
 
+/**
+ * Call Groq API with the messages
+ */
 function callGroqAPI($messages, $apiKey) {
     $url = 'https://api.groq.com/openai/v1/chat/completions';
     
     $data = [
-        'model' => 'llama-3.3-70b-versatile', // Free Groq model
+        'model' => 'llama-3.3-70b-versatile',
         'messages' => $messages,
         'temperature' => 0.7,
         'max_tokens' => 1024,
@@ -76,38 +79,40 @@ function callGroqAPI($messages, $apiKey) {
         'stream' => false
     ];
     
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: application/json',
-        'Authorization: Bearer ' . $apiKey
-    ]);
+    $options = [
+        'http' => [
+            'header' => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $apiKey
+            ],
+            'method' => 'POST',
+            'content' => json_encode($data),
+            'timeout' => 30
+        ]
+    ];
     
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $error = curl_error($ch);
-    curl_close($ch);
+    $context = stream_context_create($options);
+    $result = @file_get_contents($url, false, $context);
     
-    if ($error) {
-        return ['success' => false, 'error' => 'cURL Error: ' . $error];
-    }
-    
-    if ($httpCode !== 200) {
-        $errorData = json_decode($response, true);
-        return ['success' => false, 'error' => 'API Error: ' . ($errorData['error']['message'] ?? 'Unknown error')];
-    }
-    
-    $result = json_decode($response, true);
-    
-    if (isset($result['choices'][0]['message']['content'])) {
+    if ($result === false) {
         return [
-            'success' => true,
-            'answer' => $result['choices'][0]['message']['content'],
-            'model' => $result['model'] ?? null
+            'success' => false,
+            'error' => 'Failed to connect to AI service. Please check your API key and network connection.'
         ];
     }
     
-    return ['success' => false, 'error' => 'Invalid API response'];
+    $response = json_decode($result, true);
+    
+    if (isset($response['choices'][0]['message']['content'])) {
+        return [
+            'success' => true,
+            'answer' => $response['choices'][0]['message']['content'],
+            'model' => $response['model'] ?? 'unknown'
+        ];
+    } else {
+        return [
+            'success' => false,
+            'error' => $response['error']['message'] ?? 'Unknown error from AI service'
+        ];
+    }
 }

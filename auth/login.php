@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 								$_SESSION['user_name'] = $name;
 								mysqli_stmt_close($stmt);
 								mysqli_close($conn);
-								header('Location: /research-portal/index.php');
+								header('Location: /index.php');
 								exit;
 						} else {
 								$error = 'Incorrect password.';

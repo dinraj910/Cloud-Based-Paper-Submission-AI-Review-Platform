@@ -332,7 +332,7 @@ async function openAIChat(pdfUrl, paperTitle) {
         statusElement.textContent = '📄 Extracting text from PDF...';
         statusElement.classList.remove('hidden');
         
-        const response = await fetch(`/research-portal/api/extract_pdf_text.php?url=${encodeURIComponent(pdfUrl)}`);
+        const response = await fetch(`/api/extract_pdf_text.php?url=${encodeURIComponent(pdfUrl)}`);
         const data = await response.json();
         
         if (data.success) {
@@ -420,7 +420,7 @@ document.getElementById('chat-form').addEventListener('submit', async function(e
     
     try {
         // Send to AI
-        const response = await fetch('/research-portal/api/chat_pdf.php', {
+        const response = await fetch('/api/chat_pdf.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -525,7 +525,7 @@ function addComment(event, submissionId) {
     submitBtn.textContent = 'Posting...';
     submitBtn.disabled = true;
     
-    fetch('/research-portal/api/add_comment.php', {
+    fetch('/api/add_comment.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',

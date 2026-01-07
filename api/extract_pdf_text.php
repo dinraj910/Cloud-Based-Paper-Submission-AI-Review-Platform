@@ -30,31 +30,28 @@ function extractPdfText($url) {
     
     // Try using pdftotext command-line tool (most reliable)
     if (shell_exec('which pdftotext')) {
-        $outputFile = tempnam(sys_get_temp_dir(), 'txt_');
-        exec("pdftotext " . escapeshellarg($tempFile) . " " . escapeshellarg($outputFile) . " 2>&1", $output, $returnCode);
+        $outputFile = $tempFile . '.txt';
+        shell_exec("pdftotext " . escapeshellarg($tempFile) . " " . escapeshellarg($outputFile) . " 2>&1");
         
-        if ($returnCode === 0 && file_exists($outputFile)) {
+        if (file_exists($outputFile)) {
             $text = file_get_contents($outputFile);
             unlink($outputFile);
         }
     }
     
-    // Fallback: Basic PDF text extraction (limited but works for simple PDFs)
-    if (empty($text)) {
+    // If pdftotext didn't work or produced empty text, use fallback
+    if (empty(trim($text))) {
         $text = extractTextBasic($tempFile);
     }
     
+    // Clean up
     unlink($tempFile);
     
-    // Clean up the text
-    $text = preg_replace('/\s+/', ' ', $text); // Normalize whitespace
-    $text = trim($text);
-    
-    if (empty($text)) {
-        return ['success' => false, 'error' => 'Could not extract text from PDF. The PDF might be image-based or encrypted.'];
+    if (empty(trim($text))) {
+        return ['success' => false, 'error' => 'Could not extract text from PDF. The PDF may be image-based or encrypted.'];
     }
     
-    // Limit text to first 15000 characters to avoid API limits
+    // Limit text to ~15K characters to avoid token limits
     if (strlen($text) > 15000) {
         $text = substr($text, 0, 15000) . '... [Text truncated for analysis]';
     }
@@ -85,11 +82,14 @@ function extractTextBasic($filename) {
         }
     }
     
-    // Clean escape sequences
-    $text = str_replace(['\\n', '\\r', '\\t'], ["\n", "\r", "\t"], $text);
+    // Clean up the text
+    $text = str_replace(['\\n', '\\r', '\\t'], ' ', $text);
+    $text = preg_replace('/\s+/', ' ', $text);
     
-    return $text;
+    return trim($text);
 }
 
+// Extract the PDF text
 $result = extractPdfText($pdfUrl);
+
 echo json_encode($result);
