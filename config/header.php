@@ -1,3 +1,4 @@
+<?php if (session_status() === PHP_SESSION_NONE) session_start(); ?>
 <!DOCTYPE html>
 
 <html lang="en">
@@ -8,8 +9,6 @@
         <?php include __DIR__ . '/../assets/css/tailwind.php'; ?>
 </head>
 <body class="bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 min-h-screen">
-
-<?php if (session_status() === PHP_SESSION_NONE) session_start(); ?>
 
 <!-- Header with glassmorphism -->
 <header class="glass border-b border-white/20 mb-12 sticky top-0 z-50">
