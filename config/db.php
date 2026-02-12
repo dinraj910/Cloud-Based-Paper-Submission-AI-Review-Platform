@@ -1,14 +1,14 @@
 <?php
 
-$conn = mysqli_connect(
-	"localhost",
-	"studentuser",
-	"student123",
-	"research_portal"
-);
+$host = getenv('DB_HOST') ?: 'db';
+$user = getenv('DB_USER') ?: 'studentuser';
+$pass = getenv('DB_PASSWORD') ?: 'student123';
+$db   = getenv('DB_NAME') ?: 'research_portal';
 
-if(!$conn){
-	die("Database connection failed");
+$conn = mysqli_connect($host, $user, $pass, $db);
+
+if (!$conn) {
+    die("Database connection failed: " . mysqli_connect_error());
 }
 
 ?>

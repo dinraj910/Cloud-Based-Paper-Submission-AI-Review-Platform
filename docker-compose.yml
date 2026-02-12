@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+
+  app:
+    build: .
+    container_name: research_app
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_NAME: research_portal
+      DB_USER: studentuser
+      DB_PASSWORD: student123
+
+
+  db:
+    image: mysql:8.0
+    container_name: research_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: research_portal
+      MYSQL_USER: studentuser
+      MYSQL_PASSWORD: student123
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
